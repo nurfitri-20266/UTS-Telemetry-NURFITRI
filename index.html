@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+<title>LoRa Telemetry Control Panel</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:#0b132b;
+color:white;
+}
+
+header{
+background:#1c2541;
+padding:15px;
+text-align:center;
+font-size:24px;
+letter-spacing:2px;
+}
+
+.dashboard{
+
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:20px;
+padding:25px;
+
+}
+
+.sensor{
+
+background:#1c2541;
+border-radius:10px;
+padding:20px;
+text-align:center;
+
+}
+
+.sensor h3{
+margin:0;
+color:#aaa;
+}
+
+.value{
+
+font-size:36px;
+font-weight:bold;
+margin-top:10px;
+
+}
+
+.temp{color:#ff6b6b;}
+.hum{color:#4dabf7;}
+.soil{color:#51cf66;}
+.light{color:#ffd43b;}
+.rssi{color:#9775fa;}
+
+.graphs{
+
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(350px,1fr));
+gap:25px;
+padding:20px;
+
+}
+
+.chartbox{
+
+background:white;
+border-radius:10px;
+padding:15px;
+
+}
+
+.chartbox canvas{
+width:100%;
+}
+
+.table-panel{
+
+width:95%;
+margin:auto;
+background:white;
+color:black;
+border-radius:10px;
+overflow:hidden;
+
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+}
+
+th{
+background:#1c2541;
+color:white;
+padding:10px;
+}
+
+td{
+padding:8px;
+border-bottom:1px solid #ddd;
+text-align:center;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+📡 LORA TELEMETRY CONTROL PANEL
+</header>
+
+<div class="dashboard">
+
+<div class="sensor">
+<h3>Temperature</h3>
+<div class="value temp" id="temp">--</div>
+</div>
+
+<div class="sensor">
+<h3>Humidity</h3>
+<div class="value hum" id="hum">--</div>
+</div>
+
+<div class="sensor">
+<h3>Soil Moisture</h3>
+<div class="value soil" id="soil">--</div>
+</div>
+
+<div class="sensor">
+<h3>Light</h3>
+<div class="value light" id="light">--</div>
+</div>
+
+<div class="sensor">
+<h3>RSSI</h3>
+<div class="value rssi" id="rssi">--</div>
+</div>
+
+</div>
+
+<div class="graphs">
+
+<div class="chartbox">
+<canvas id="tempChart"></canvas>
+</div>
+
+<div class="chartbox">
+<canvas id="humChart"></canvas>
+</div>
+
+<div class="chartbox">
+<canvas id="soilChart"></canvas>
+</div>
+
+<div class="chartbox">
+<canvas id="lightChart"></canvas>
+</div>
+
+<div class="chartbox">
+<canvas id="rssiChart"></canvas>
+</div>
+
+</div>
+
+<div class="table-panel">
+
+<table>
+
+<thead>
+
+<tr>
+<th>Time</th>
+<th>Temp</th>
+<th>Humidity</th>
+<th>Soil</th>
+<th>Light</th>
+<th>RSSI</th>
+</tr>
+
+</thead>
+
+<tbody id="history"></tbody>
+
+</table>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+
+apiKey: "AIzaSyCr2glIokJBLIDpKnKesfahpduFa3qnyRg",
+authDomain: "uts-telemetri-nurfitri.firebaseapp.com",
+projectId: "uts-telemetri-nurfitri",
+storageBucket: "uts-telemetri-nurfitri.firebasestorage.app",
+messagingSenderId: "734287312732",
+appId: "1:734287312732:web:682a859f62a8ec048b3399"
+
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let labels=[]
+
+let tempData=[]
+let humData=[]
+let soilData=[]
+let lightData=[]
+let rssiData=[]
+
+function createChart(id,label,color,data){
+
+return new Chart(document.getElementById(id),{
+
+type:'line',
+
+data:{
+labels:labels,
+datasets:[{
+label:label,
+data:data,
+borderColor:color,
+tension:0.4
+}]
+}
+
+})
+
+}
+
+const tempChart=createChart("tempChart","Temperature","#ff6b6b",tempData)
+const humChart=createChart("humChart","Humidity","#4dabf7",humData)
+const soilChart=createChart("soilChart","Soil","#51cf66",soilData)
+const lightChart=createChart("lightChart","Light","#ffd43b",lightData)
+const rssiChart=createChart("rssiChart","RSSI","#9775fa",rssiData)
+
+const sensorRef = doc(db,"sensor","node1")
+
+onSnapshot(sensorRef,(docSnap)=>{
+
+const data = docSnap.data()
+
+let suhu=data.suhu
+let hum=data.kelembapan
+let soil=data.soil
+let cahaya=data.cahaya
+let rssi=data.rssi
+
+document.getElementById("temp").innerText=suhu+" °C"
+document.getElementById("hum").innerText=hum+" %"
+document.getElementById("soil").innerText=soil
+document.getElementById("light").innerText=cahaya
+document.getElementById("rssi").innerText=rssi
+
+let time=new Date().toLocaleTimeString()
+
+labels.push(time)
+
+tempData.push(suhu)
+humData.push(hum)
+soilData.push(soil)
+lightData.push(cahaya)
+rssiData.push(rssi)
+
+if(labels.length>20){
+
+labels.shift()
+
+tempData.shift()
+humData.shift()
+soilData.shift()
+lightData.shift()
+rssiData.shift()
+
+}
+
+tempChart.update()
+humChart.update()
+soilChart.update()
+lightChart.update()
+rssiChart.update()
+
+let table=document.getElementById("history")
+
+let row=table.insertRow(0)
+
+row.insertCell(0).innerHTML=time
+row.insertCell(1).innerHTML=suhu
+row.insertCell(2).innerHTML=hum
+row.insertCell(3).innerHTML=soil
+row.insertCell(4).innerHTML=cahaya
+row.insertCell(5).innerHTML=rssi
+
+})
+
+</script>
+
+</body>
+</html>
